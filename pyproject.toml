@@ -1,0 +1,58 @@
+[project]
+name = "playlist-intersection"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.0",
+    "ruff>=0.16.0",
+    "ty>=0.0.63",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["CPY001"]
+extend-select = ["ANN"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+no_implicit_reexport = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unused_configs = true
+warn_return_any = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+extra_checks = true
+enable_error_code = [
+    "ignore-without-code",
+    "explicit-override",
+    "unused-awaitable",
+]
+show_error_codes = true
+pretty = true
+show_error_context = true
+
+[tool.ty]
+strict = true

@@ -1,0 +1,14 @@
+{
+  // imports from uv environment
+  "mypy-type-checker.importStrategy": "fromEnvironment",
+  "ty.importStrategy": "fromEnvironment",
+  // format on save
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  }
+}
