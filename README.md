@@ -5,7 +5,9 @@ Output the intersection (common songs) of two playlists (as Spotify currently do
 ## Example Output
 
 ```
-
+TwoHouseHolds - maye!
+The Weeknd - Blinding Lights
+ENU (AU) - Now I Rise (feat. CLYFFTONE, Leo Ferro)
 ```
 
 ## Setup
