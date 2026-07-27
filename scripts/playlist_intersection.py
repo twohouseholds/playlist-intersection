@@ -9,7 +9,7 @@ from argparse import Namespace
 from dataclasses import dataclass
 from functools import total_ordering
 from pathlib import Path
-from typing import Any, Self, cast
+from typing import Any, cast, override
 
 import yaml
 from pydantic import BaseModel
@@ -82,8 +82,22 @@ class Track(BaseModel):
     name: str
     main_artist: str
 
-    def __lt__(self, other: Self) -> bool:
+    @override
+    def __eq__(self, other: object) -> bool:
+        """Compare tracks by main artist and name only."""
+        if not isinstance(other, Track):
+            return NotImplemented
+        return self.main_artist == other.main_artist and self.name == other.name
+
+    @override
+    def __hash__(self) -> int:
+        """Hash tracks by main artist and name only."""
+        return hash((self.main_artist, self.name))
+
+    def __lt__(self, other: object) -> bool:
         """Compare tracks by main artist, then by name."""
+        if not isinstance(other, Track):
+            return NotImplemented
         if self.main_artist == other.main_artist:
             return self.name.lower() < other.name.lower()
         return self.main_artist.lower() < other.main_artist.lower()
