@@ -111,6 +111,8 @@ def get_intersection_track_uris(
     spotify_client: Spotify,
 ) -> list[str]:
     """Get the intersection of the playlists from ``playlist_ids``."""
+    if not playlist_ids:
+        return []
     _logger.info("Reading playlists")
     tracks_by_playlist = [
         get_tracks(playlist_id, spotify_client) for playlist_id in playlist_ids
