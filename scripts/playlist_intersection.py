@@ -126,7 +126,7 @@ def get_tracks(
     playlist_id: str,
     spotify_client: Spotify,
 ) -> set[Track]:
-    """Get the of tracks from ``playlist_id``.
+    """Get the tracks from ``playlist_id``.
 
     Spotify allows a limit up to 100 tracks per request. Therefore, requests for 100
     tracks each are sent until a response contains <100 tracks.
