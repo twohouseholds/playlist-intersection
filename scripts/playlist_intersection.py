@@ -119,7 +119,7 @@ def get_playlist_intersection(
         tracks_by_playlist.append(get_tracks(playlist_id, spotify_client))
     _logger.info("Computing intersection")
     playlist_intersection = set.intersection(*tracks_by_playlist)
-    return list(playlist_intersection)
+    return sorted(playlist_intersection, key=lambda track: track.main_artist)
 
 
 def get_tracks(
