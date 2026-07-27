@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Output playlist intersection."""
+"""Create an intersection playlist from the playlist IDs in the given config file."""
 
 import argparse
 import logging
 import os
 import re
+from argparse import Namespace
 from dataclasses import dataclass
 from functools import total_ordering
 from pathlib import Path
@@ -15,52 +16,35 @@ from pydantic import BaseModel
 from spotipy import Spotify, SpotifyOAuth
 
 REDIRECT_URI = "http://127.0.0.1:8888/callback"
-SCOPE = "playlist-read-private playlist-read-collaborative"
+SCOPE = "playlist-read-private playlist-read-collaborative playlist-modify-public"
 
 _logger = logging.getLogger(__name__)
-
-
-class CliArgs(BaseModel):
-    """Command line arguments."""
-
-    config_path: Path
-    output_path: Path
 
 
 class Config(BaseModel):
     """Config for this script."""
 
+    output_playlist_name: str
     playlist_ids: list[str]
-
-
-@dataclass(frozen=True)
-@total_ordering
-class Track(BaseModel):
-    """Track in a playlist."""
-
-    name: str
-    main_artist: str
-    secondary_artists_lexicographically: tuple[str, ...]
-
-    def __lt__(self, other: Self) -> bool:
-        """Compare tracks by main artist, then by name."""
-        if self.main_artist == other.main_artist:
-            return self.name < other.name
-        return self.main_artist < other.main_artist
 
 
 def main() -> None:
     """Run script."""
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    args = parse_args()
-    playlist_intersection = get_playlist_intersection(
-        get_config(args.config_path).playlist_ids,
-        get_spotify_client(),
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    config = Config.model_validate(yaml.safe_load(parse_args().config_path.read_text()))
+    spotify_client = get_spotify_client()
+    intersection_track_uris = get_intersection_track_uris(
+        config.playlist_ids,
+        spotify_client,
     )
-    write_output(playlist_intersection, args.output_path)
+    create_playlist(
+        config.output_playlist_name,
+        intersection_track_uris,
+        spotify_client,
+    )
 
 
-def parse_args() -> CliArgs:
+def parse_args() -> Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -68,32 +52,11 @@ def parse_args() -> CliArgs:
         type=Path,
         help="Path to the YAML config file.",
     )
-    parser.add_argument(
-        "-o",
-        "--output",
-        dest="output_path",
-        type=Path,
-        default=Path(__file__).parent.parent / "output.txt",
-        help="Path to the output text file.",
-    )
-    parsed_args = parser.parse_args()
-    return CliArgs(
-        config_path=parsed_args.config_path,
-        output_path=parsed_args.output_path,
-    )
-
-
-def get_config(config_path: Path) -> Config:
-    """Read, parse and validate config."""
-    _logger.info("Reading config")
-    raw_config = config_path.read_text()
-    parsed_conifg = yaml.safe_load(raw_config)
-    return Config.model_validate(parsed_conifg)
+    return parser.parse_args()
 
 
 def get_spotify_client() -> Spotify:
     """Create spotify client from credentials in environment variables."""
-    _logger.info("Creating Spotify client")
     if not (client_id := os.getenv("SPOTIFY_CLIENT_ID")):
         msg = "Environment variable 'SPOTIFY_CLIENT_ID' is not set."
         raise ValueError(msg)
@@ -110,23 +73,34 @@ def get_spotify_client() -> Spotify:
     )
 
 
-def get_playlist_intersection(
+@dataclass(frozen=True)
+@total_ordering
+class Track(BaseModel):
+    """Track in a playlist."""
+
+    uri: str
+    name: str
+    main_artist: str
+
+    def __lt__(self, other: Self) -> bool:
+        """Compare tracks by main artist, then by name."""
+        if self.main_artist == other.main_artist:
+            return self.name.lower() < other.name.lower()
+        return self.main_artist.lower() < other.main_artist.lower()
+
+
+def get_intersection_track_uris(
     playlist_ids: list[str],
     spotify_client: Spotify,
-) -> list[Track]:
+) -> list[str]:
     """Get the intersection of the playlists from ``playlist_ids``."""
     _logger.info("Reading playlists")
-    tracks_by_playlist: list[set[Track]] = []
-    for index, playlist_id in enumerate(playlist_ids):
-        _logger.info(
-            "%.1f%% - %s",
-            index / len(playlist_ids) * 100,
-            get_metadata_str(playlist_id, spotify_client),
-        )
-        tracks_by_playlist.append(get_tracks(playlist_id, spotify_client))
+    tracks_by_playlist = [
+        get_tracks(playlist_id, spotify_client) for playlist_id in playlist_ids
+    ]
     _logger.info("Computing intersection")
     playlist_intersection = set.intersection(*tracks_by_playlist)
-    return sorted(playlist_intersection)
+    return [track.uri for track in sorted(playlist_intersection)]
 
 
 def get_tracks(
@@ -150,19 +124,15 @@ def get_tracks(
         items = cast("list[dict[str,Any]]", raw_items["items"])
         for item_dict in items:
             item = cast("dict[str, Any]", item_dict["item"])
+            uri = str(item["uri"])
             name = re.sub(r" \(feat\. .*\)", "", item["name"])
             artist_dicts = cast("list[dict[str, Any]]", item["artists"])
             main_artist = str(artist_dicts[0]["name"])
-            secondary_artists = {
-                str(artist_dict["name"]) for artist_dict in artist_dicts
-            } - {main_artist}
             tracks.add(
                 Track(
+                    uri=uri,
                     name=name,
                     main_artist=main_artist,
-                    secondary_artists_lexicographically=tuple(
-                        sorted(secondary_artists),
-                    ),
                 ),
             )
         has_next_page = len(items) == limit
@@ -170,35 +140,23 @@ def get_tracks(
     return tracks
 
 
-def get_metadata_str(
-    playlist_id: str,
+def create_playlist(
+    name: str,
+    track_uris: list[str],
     spotify_client: Spotify,
-) -> str:
-    """Log playlist metadata."""
-    metadata = cast(
+) -> None:
+    """Create playlist."""
+    _logger.info("Creating playlist '%s'", name)
+    response_dict = cast(
         "dict[str, Any]",
-        spotify_client.playlist(playlist_id),
+        spotify_client.current_user_playlist_create(name),
     )
-    playlist_name = cast("str", metadata.get("name"))
-    is_public = cast("bool", metadata.get("public"))
-    owner_metadata = cast("dict[str, str]", metadata["owner"])
-    owner_name = owner_metadata["display_name"]
-    return f"'{playlist_name}' by '{owner_name}' ({
-        'public' if is_public else 'non-public'
-    })"
-
-
-def write_output(playlist_intersection: list[Track], output_path: Path) -> None:
-    """Write output."""
-    _logger.info("Creating output")
-    output = []
-    for track in playlist_intersection:
-        output_line = f"{track.main_artist} - {track.name}"
-        features = track.secondary_artists_lexicographically
-        if features:
-            output_line += f" (feat. {', '.join(features)})"
-        output.append(output_line)
-    output_path.write_text("\n".join(output), encoding="utf-8")
+    playlist_id = str(response_dict["id"])
+    for offset in range(0, len(track_uris), 100):
+        spotify_client.playlist_add_items(
+            playlist_id,
+            track_uris[offset : offset + 100],
+        )
 
 
 if __name__ == "__main__":
