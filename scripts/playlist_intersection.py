@@ -9,8 +9,9 @@ import logging
 import os
 import re
 from dataclasses import dataclass
+from functools import total_ordering
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Self, cast
 
 import yaml
 from pydantic import BaseModel
@@ -36,12 +37,19 @@ class Config(BaseModel):
 
 
 @dataclass(frozen=True)
+@total_ordering
 class Track(BaseModel):
     """Track in a playlist."""
 
     name: str
     main_artist: str
     secondary_artists_lexicographically: tuple[str, ...]
+
+    def __lt__(self, other: Self) -> bool:
+        """Compare tracks by main artist, then by name."""
+        if self.main_artist == other.main_artist:
+            return self.name < other.name
+        return self.main_artist < other.main_artist
 
 
 def main() -> None:
@@ -121,7 +129,7 @@ def get_playlist_intersection(
         tracks_by_playlist.append(get_tracks(playlist_id, spotify_client))
     _logger.info("Computing intersection")
     playlist_intersection = set.intersection(*tracks_by_playlist)
-    return sorted(playlist_intersection, key=lambda track: track.main_artist)
+    return sorted(playlist_intersection)
 
 
 def get_tracks(
