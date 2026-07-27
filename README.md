@@ -5,9 +5,10 @@ Output the intersection (common songs) of two playlists (as Spotify currently do
 ## Example Output
 
 ```
+Eliminate - Dawn (feat. Flux Pavilion, meesh)
 TwoHouseHolds - maye!
-The Weeknd - Blinding Lights
-ENU (AU) - Now I Rise (feat. CLYFFTONE, Leo Ferro)
+Virtual Riot - Statues
+Zerb - Addicted (feat. Ink, The Chainsmokers)
 ```
 
 ## Setup
