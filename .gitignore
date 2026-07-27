@@ -1,2 +1,5 @@
+.cache
+
 .env
 data/config.yaml
+output.txt
