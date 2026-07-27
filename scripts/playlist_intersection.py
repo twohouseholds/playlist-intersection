@@ -26,6 +26,7 @@ class Config(BaseModel):
 
     output_playlist_name: str
     playlist_ids: list[str]
+    setminus_playlist_id: str | None = None
 
 
 def main() -> None:
@@ -35,6 +36,7 @@ def main() -> None:
     spotify_client = get_spotify_client()
     intersection_track_uris = get_intersection_track_uris(
         config.playlist_ids,
+        config.setminus_playlist_id,
         spotify_client,
     )
     create_playlist(
@@ -105,6 +107,7 @@ class Track(BaseModel):
 
 def get_intersection_track_uris(
     playlist_ids: list[str],
+    setminus_playlist_id: str | None,
     spotify_client: Spotify,
 ) -> list[str]:
     """Get the intersection of the playlists from ``playlist_ids``."""
@@ -113,8 +116,10 @@ def get_intersection_track_uris(
         get_tracks(playlist_id, spotify_client) for playlist_id in playlist_ids
     ]
     _logger.info("Computing intersection")
-    playlist_intersection = set.intersection(*tracks_by_playlist)
-    return [track.uri for track in sorted(playlist_intersection)]
+    intersection_tracks = set.intersection(*tracks_by_playlist)
+    if setminus_playlist_id:
+        intersection_tracks -= get_tracks(setminus_playlist_id, spotify_client)
+    return [track.uri for track in sorted(intersection_tracks)]
 
 
 def get_tracks(
