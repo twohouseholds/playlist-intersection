@@ -77,7 +77,7 @@ def get_spotify_client() -> Spotify:
 
 @dataclass(frozen=True)
 @total_ordering
-class Track(BaseModel):
+class Track:
     """Track in a playlist."""
 
     uri: str
