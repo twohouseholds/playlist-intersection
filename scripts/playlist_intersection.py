@@ -6,6 +6,7 @@ The maximum input playlist size is 10_000.
 import argparse
 import logging
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -140,7 +141,7 @@ def get_tracks(
         items = cast("list[dict[str,Any]]", raw_items["items"])
         for item_dict in items:
             item = cast("dict[str, Any]", item_dict["item"])
-            name = item["name"]
+            name = re.sub(r" \(feat\. .*\)", "", item["name"])
             artist_dicts = cast("list[dict[str, Any]]", item["artists"])
             main_artist = str(artist_dicts[0]["name"])
             secondary_artists = {
