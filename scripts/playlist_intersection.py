@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Output playlist intersection.
-
-The maximum input playlist size is 10_000.
-"""
+"""Output playlist intersection."""
 
 import argparse
 import logging
@@ -138,14 +135,17 @@ def get_tracks(
 ) -> set[Track]:
     """Get the of tracks from ``playlist_id``.
 
-    Spotify allows a limit up to 100 tracks per request. Therefore, 100 requests are
-    sent for 100 tracks each, leading to the maximum input playlist size of 10_000.
+    Spotify allows a limit up to 100 tracks per request. Therefore, requests for 100
+    tracks each are sent until a response contains <100 tracks.
     """
     tracks: set[Track] = set()
-    for offset in range(0, 10_000, 100):
+    offset = 0
+    limit = 100
+    has_next_page = True
+    while has_next_page:
         raw_items = cast(
             "dict[str, Any]",
-            spotify_client.playlist_tracks(playlist_id, offset=offset, limit=100),
+            spotify_client.playlist_tracks(playlist_id, offset=offset, limit=limit),
         )
         items = cast("list[dict[str,Any]]", raw_items["items"])
         for item_dict in items:
@@ -165,8 +165,8 @@ def get_tracks(
                     ),
                 ),
             )
-        if len(items) < 100:  # noqa: PLR2004
-            break
+        has_next_page = len(items) == limit
+        offset += limit
     return tracks
 
 

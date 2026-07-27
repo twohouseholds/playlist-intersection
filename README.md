@@ -1,6 +1,6 @@
 # Playlist Intersection
 
-Output the intersection (common songs) of two playlists (as Spotify currently does not support this). The maximum input playlist size is 10_000.
+Output the intersection (common songs) of two playlists (as Spotify currently does not support this).
 
 ## Example Output
 
