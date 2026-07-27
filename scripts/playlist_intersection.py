@@ -101,7 +101,7 @@ def get_spotify_client() -> Spotify:
         msg = "Environment variable 'SPOTIFY_CLIENT_ID' is not set."
         raise ValueError(msg)
     if not (client_secret := os.getenv("SPOTIFY_CLIENT_SECRET")):
-        msg = "Environment variable 'SPOTIFY_CLIENT_ID' is not set."
+        msg = "Environment variable 'SPOTIFY_CLIENT_SECRET' is not set."
         raise ValueError(msg)
     return Spotify(
         auth_manager=SpotifyOAuth(
