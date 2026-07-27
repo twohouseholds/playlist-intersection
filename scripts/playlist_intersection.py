@@ -66,7 +66,7 @@ def parse_args() -> CliArgs:
         "--output",
         dest="output_path",
         type=Path,
-        default=Path(__file__).parent / "output.txt",
+        default=Path(__file__).parent.parent / "output.txt",
         help="Path to the output text file.",
     )
     parsed_args = parser.parse_args()
