@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Output playlist intersection.
 
 The maximum input playlist size is 10_000.
