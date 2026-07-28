@@ -1,7 +1,7 @@
 [project]
 name = "playlist-intersection"
 version = "0.1.0"
-description = "Add your description here"
+description = "Tool to create an intersection playlist with the common tracks of a number of playlists (as Spotify currently does not support this)."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
