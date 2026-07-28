@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create an intersection playlist from the playlist IDs in the given config file."""
+"""Create an intersection playlist from a number of playlist links."""
 
 import argparse
 import logging
@@ -25,18 +25,19 @@ class Config(BaseModel):
     """Config for this script."""
 
     output_playlist_name: str
-    playlist_ids: list[str]
-    setminus_playlist_id: str | None = None
+    playlist_links: list[str]
+    setminus_playlist_link: str | None = None
 
 
 def main() -> None:
     """Run script."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    config = Config.model_validate(yaml.safe_load(parse_args().config_path.read_text()))
+    args = parse_args()
     spotify_client = get_spotify_client()
+    config = get_config(args)
     intersection_track_uris = get_intersection_track_uris(
-        config.playlist_ids,
-        config.setminus_playlist_id,
+        config.playlist_links,
+        config.setminus_playlist_link,
         spotify_client,
     )
     create_playlist(
@@ -44,17 +45,6 @@ def main() -> None:
         intersection_track_uris,
         spotify_client,
     )
-
-
-def parse_args() -> Namespace:
-    """Parse CLI arguments."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        dest="config_path",
-        type=Path,
-        help="Path to the YAML config file.",
-    )
-    return parser.parse_args()
 
 
 def get_spotify_client() -> Spotify:
@@ -72,6 +62,40 @@ def get_spotify_client() -> Spotify:
             redirect_uri=REDIRECT_URI,
             scope=SCOPE,
         ),
+    )
+
+
+def parse_args() -> Namespace:
+    """Parse CLI arguments."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        dest="config_path",
+        type=Path,
+        default=None,
+        nargs="?",
+        help="Path to the YAML config file.",
+    )
+    return parser.parse_args()
+
+
+def get_config(args: Namespace) -> Config:
+    """Get the configuration, either from the given file or by asking the user."""
+    if args.config_path:
+        return Config.model_validate(yaml.safe_load(args.config_path.read_text()))
+    print(  # noqa: T201
+        "Paste the links to the playlists you want the intersection of",
+        "(paste + ENTER to add, ENTER to continue):",
+    )
+    playlist_links = []
+    while True:
+        if link := input():
+            playlist_links.append(link)
+        else:
+            break
+    return Config(
+        output_playlist_name=input("Name the output playlist: "),
+        playlist_links=playlist_links,
+        setminus_playlist_link=None,
     )
 
 
@@ -106,26 +130,26 @@ class Track:
 
 
 def get_intersection_track_uris(
-    playlist_ids: list[str],
-    setminus_playlist_id: str | None,
+    playlist_links: list[str],
+    setminus_playlist_link: str | None,
     spotify_client: Spotify,
 ) -> list[str]:
     """Get the intersection of the playlists from ``playlist_ids``."""
-    if not playlist_ids:
+    if not playlist_links:
         return []
     _logger.info("Reading playlists")
     tracks_by_playlist = [
-        get_tracks(playlist_id, spotify_client) for playlist_id in playlist_ids
+        get_tracks(playlist_link, spotify_client) for playlist_link in playlist_links
     ]
     _logger.info("Computing intersection")
     intersection_tracks = set.intersection(*tracks_by_playlist)
-    if setminus_playlist_id:
-        intersection_tracks -= get_tracks(setminus_playlist_id, spotify_client)
+    if setminus_playlist_link:
+        intersection_tracks -= get_tracks(setminus_playlist_link, spotify_client)
     return [track.uri for track in sorted(intersection_tracks)]
 
 
 def get_tracks(
-    playlist_id: str,
+    playlist_link: str,
     spotify_client: Spotify,
 ) -> set[Track]:
     """Get the tracks from ``playlist_id``.
@@ -134,6 +158,7 @@ def get_tracks(
     tracks each are sent until a response contains <100 tracks.
     """
     tracks: set[Track] = set()
+    playlist_id = extract_playlist_id(playlist_link)
     offset = 0
     limit = 100
     has_next_page = True
@@ -159,6 +184,15 @@ def get_tracks(
         has_next_page = len(items) == limit
         offset += limit
     return tracks
+
+
+def extract_playlist_id(playlist_link: str) -> str:
+    """Extract the playlist ID from a playlist link."""
+    match = re.search("open.spotify.com/playlist/([a-zA-Z0-9]+)", playlist_link)
+    if not match:
+        msg = f"{playlist_link} is not a valid Spotify playlist link"
+        raise ValueError(msg)
+    return match.group(1)
 
 
 def create_playlist(
